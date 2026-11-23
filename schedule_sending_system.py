@@ -23,19 +23,19 @@ def init_db():
     conn.commit()
     conn.close()
 
-# 💡 すでに同じ予定が存在するかチェックする関数
+# 重複チェック用
 def check_duplicate(event_type, subject, deadline_or_date, details):
     conn = sqlite3.connect("schedules.db")
     cursor = conn.cursor()
-    # 同じ種類、教科、日時、詳細がすべて一致するデータがあるか数える
     cursor.execute('''
         SELECT COUNT(*) FROM schedules 
         WHERE event_type = ? AND subject = ? AND deadline_or_date = ? AND details = ?
     ''', (event_type, subject, deadline_or_date, details))
     count = cursor.fetchone()[0]
     conn.close()
-    return count > 0  # 1件以上あれば True（重複あり）
+    return count > 0
 
+# 新規保存用
 def save_schedule(event_type, subject, deadline_or_date, details):
     conn = sqlite3.connect("schedules.db")
     cursor = conn.cursor()
@@ -46,6 +46,15 @@ def save_schedule(event_type, subject, deadline_or_date, details):
     conn.commit()
     conn.close()
 
+# 💡 指定したIDのデータを削除する関数
+def delete_schedule(schedule_id):
+    conn = sqlite3.connect("schedules.db")
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM schedules WHERE id = ?', (schedule_id,))
+    conn.commit()
+    conn.close()
+
+# 一覧取得用
 def get_all_schedules():
     conn = sqlite3.connect("schedules.db")
     df = pd.read_sql("SELECT * FROM schedules", conn)
@@ -107,7 +116,6 @@ def extract_schedule_simple(text):
         
     subject = "数学" if "数学" in text else "未指定"
     
-    # 日付やページの抽出（簡易正規表現）
     dates = re.findall(r"\d+月\d+日|来週の?[金土日月火水木]", text)
     deadline = dates[0] if dates else "未指定"
     
@@ -125,7 +133,6 @@ def extract_schedule_simple(text):
 if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知"):
     schedule_data = extract_schedule_simple(transcribed_text)
     
-    # 💡 重複チェックを実行
     is_duplicate = check_duplicate(
         schedule_data["event_type"],
         schedule_data["subject"],
@@ -136,7 +143,6 @@ if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知
     if is_duplicate:
         st.warning("⚠️ この予定はすでにデータベースに登録されています！（重複のため保存をスキップしました）")
     else:
-        # 重複していない場合のみデータベースに保存
         save_schedule(
             event_type=schedule_data["event_type"],
             subject=schedule_data["subject"],
@@ -145,7 +151,6 @@ if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知
         )
         st.success("💾 新しい予定をデータベースに保存しました！")
 
-        # LINE送信用メッセージの組み立て
         message_text = (
             "🤖【自動通知】先生の発言から新しい予定を検出しました！\n\n"
             f"📌 種類: {schedule_data['event_type']}\n"
@@ -155,7 +160,6 @@ if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知
             f"元の発言: {transcribed_text}"
         )
 
-        # LINEへ送信
         url = "https://api.line.me/v2/bot/message/push"
         headers = {
             "Content-Type": "application/json",
@@ -174,11 +178,24 @@ if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知
             st.error(f"❌ LINE送信に失敗しました（エラーコード: {response.status_code}）")
             st.write(response.text)
 
-# --- 5. 登録済みスケジュール一覧の表示 ---
+# --- 5. 登録済みスケジュール一覧の表示 ＆ 削除機能 ---
 st.markdown("---")
 st.subheader("📋 データベースに保存されたスケジュール一覧")
 saved_df = get_all_schedules()
+
 if not saved_df.empty:
     st.dataframe(saved_df)
+
+    # 💡 削除用の入力・ボタンエリア
+    st.markdown("### 🗑️ 予定の削除")
+    # 登録されているデータのIDリストを取得
+    schedule_ids = saved_df["id"].tolist()
+    
+    selected_id = st.selectbox("削除したいスケジュールのIDを選択してください", schedule_ids)
+    
+    if st.button("選択したIDの予定を削除する"):
+        delete_schedule(selected_id)
+        st.success(f"🗑️ ID: {selected_id} の予定を削除しました！")
+        st.rerun()  # 画面をリロードして最新の一覧を再表示する
 else:
     st.info("まだ保存された予定はありません。")
