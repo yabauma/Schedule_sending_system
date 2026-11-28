@@ -116,11 +116,11 @@ def extract_schedule_simple(text):
 
     if "数学" in text:
         subject = "数学"
-    elif "古文" or "漢文" in text:
+    elif "古文" in text or "漢文" in text:
         subject = "古典"
     elif "国語" in text:
         subject = "国語"
-    elif "化学" or "科学" in text:
+    elif "化学" in text or "科学" in text:
         subject = "化学"
     elif "物理" in text:
         subject = "物理"
