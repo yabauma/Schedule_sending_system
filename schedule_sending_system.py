@@ -113,8 +113,25 @@ def extract_schedule_simple(text):
         event_type = "テスト"
     elif "提出" in text or "宿題" in text or "ワーク" in text:
         event_type = "宿題"
-        
-    subject = "数学" if "数学" in text else "未指定"
+
+    if "数学" in text:
+        subject = "数学"
+    elif "古文" or "漢文" in text:
+        subject = "古典"
+    elif "国語" in text:
+        subject = "国語"
+    elif "化学" or "科学" in text:
+        subject = "化学"
+    elif "物理" in text:
+        subject = "物理"
+    elif "英語" in text:
+        subject = "英語"
+    elif "地理" in text:
+        subject = "地理"
+    elif "歴史" in text:
+        subject - "歴史"
+    else:
+        subject = "未指定"
     
     dates = re.findall(r"\d+月\d+日|来週の?[金土日月火水木]", text)
     deadline = dates[0] if dates else "未指定"
@@ -156,8 +173,7 @@ if transcribed_text and st.button("🔍 予定を分析して保存・LINE通知
             f"📌 種類: {schedule_data['event_type']}\n"
             f"📚 教科: {schedule_data['subject']}\n"
             f"⏰ 日時: {schedule_data['deadline_or_date']}\n"
-            f"📖 内容: {schedule_data['details']}\n\n"
-            f"元の発言: {transcribed_text}"
+            f"📖 内容: {schedule_data['details']}"
         )
 
         url = "https://api.line.me/v2/bot/message/push"
